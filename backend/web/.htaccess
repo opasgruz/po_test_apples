@@ -1,0 +1,8 @@
+RewriteEngine on
+
+# Если запрашивается существующая папка или файл — отдаем их
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Иначе перенаправляем запрос на index.php
+RewriteRule . index.php

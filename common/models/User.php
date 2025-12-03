@@ -210,4 +210,51 @@ class User extends ActiveRecord implements IdentityInterface
     {
         $this->password_reset_token = null;
     }
+
+    /**
+     * Получение списка яблок пользователя.
+     * Согласно плану: "Удалённые яблоки со значением deleted_at = null в списке не отдаются"
+     */
+    public function getApples()
+    {
+        return $this->hasMany(Apple::class, ['user_id' => 'id'])
+            ->where(['deleted_at' => null]) // Фильтр "мягкого" удаления
+            ->orderBy(['id' => SORT_ASC]); // Чтобы порядок на дереве не скакал
+    }
+
+    // -------------------------------------------------------------------------
+    // БИЗНЕС-ЛОГИКА (APPLE GENERATION)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Генерация яблок.
+     * Использует Apple::create() для логики создания, но сохраняет через batchInsert.
+     *
+     * @param int $min
+     * @param int $max
+     * @return Apple[]
+     * @throws \yii\db\Exception
+     */
+    public function generateApples($min, $max)
+    {
+        // 1. Очистка
+        Apple::deleteAll(['user_id' => $this->id]);
+
+        // 2. Генерация массива объектов
+        $count = rand($min, $max);
+        $apples = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            // Создаем полностью заполненный объект
+            $apples[] = Apple::create($this->id);
+        }
+
+        // 3. Массовое сохранение (динамическое)
+        Apple::saveBatch($apples);
+
+        // 4. Сброс связи
+        unset($this->apples);
+
+        return $this->apples;
+    }
 }
