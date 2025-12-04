@@ -13,14 +13,26 @@ use yii\web\Controller;
 use yii\web\Response;
 use yii\web\BadRequestHttpException;
 use yii\web\UnprocessableEntityHttpException;
+use yii\web\ServerErrorHttpException;
 
+/**
+ * Class AppleController
+ *
+ * Контроллер для действий над конкретным яблоком.
+ *
+ * @package backend\controllers
+ */
 class AppleController extends Controller
 {
-    // ОТКЛЮЧАЕМ CSRF для этого контроллера
+    /**
+     * @var bool Отключаем CSRF валидацию для API запросов
+     */
     public $enableCsrfValidation = false;
 
     /**
-     * Настройка поведений
+     * Настройка поведений контроллера.
+     *
+     * @return array
      */
     public function behaviors()
     {
@@ -45,7 +57,12 @@ class AppleController extends Controller
     }
 
     /**
-     * Форсируем JSON ответ для всех действий
+     * Действие перед выполнением любого action.
+     * Форсируем формат ответа JSON.
+     *
+     * @param \yii\base\Action $action
+     * @return bool
+     * @throws \yii\web\BadRequestHttpException
      */
     public function beforeAction($action)
     {
@@ -55,28 +72,45 @@ class AppleController extends Controller
     }
 
     /**
-     * Съесть яблоко
-     * POST /apple/eat?id=1 body: {percent: 25}
+     * @api {post} /apples/{id}/eat Съесть яблоко
+     * @apiName EatApple
+     * @apiGroup Apple
+     *
+     * @apiDescription Откусить часть яблока. Уменьшает целостность (integrity).
+     * Если integrity становится <= 0, яблоко считается съеденным (удаляется).
+     *
+     * @apiParam {Integer} id ID яблока (в URL).
+     * @apiParam {Integer} percent Процент откусываемой части (в Body JSON).
+     *
+     * @apiSuccess {Object} apple Обновленный объект яблока.
+     *
+     * @apiError (422) UnprocessableEntityHttpException Ошибки бизнес-логики (нельзя съесть на дереве, гнилое и т.д.).
+     * @apiError (400) BadRequestHttpException Ошибка валидации входящих параметров.
+     * @apiError (404) NotFoundHttpException Яблоко не найдено или не принадлежит пользователю.
+     *
+     * @param int $id
+     * @return Apple
+     * @throws BadRequestHttpException
+     * @throws UnprocessableEntityHttpException
+     * @throws ServerErrorHttpException
+     * @throws \yii\web\NotFoundHttpException
      */
     public function actionEat($id)
     {
         $model = Apple::findModel($id);
         $form = new EatForm();
 
-        // Загружаем данные из POST
+        // Загружаем данные из POST и валидируем
         if ($form->load(Yii::$app->request->post()) && $form->validate()) {
             try {
-                // Вызываем метод модели
                 $model->eat($form->percent);
 
-                // Возвращаем обновленный объект
                 return $model;
             } catch (UserException $e) {
-                // Ошибки бизнес-логики (нельзя съесть, гнилое и т.д.)
-                // 422 Unprocessable Entity - сервер понимает тип содержимого, но не может выполнить
+                // Ошибки бизнес-логики
                 throw new UnprocessableEntityHttpException($e->getMessage());
             } catch (\Exception $e) {
-                throw new \yii\web\ServerErrorHttpException('Произошла ошибка при попытке съесть яблоко');
+                throw new ServerErrorHttpException('Произошла ошибка при попытке съесть яблоко');
             }
         }
 
@@ -85,8 +119,25 @@ class AppleController extends Controller
     }
 
     /**
-     * Сменить статус (Упасть)
-     * POST /apple/status?id=1 body: {status: 1}
+     * @api {post} /apples/{id}/status Уронить яблоко
+     * @apiName StatusApple
+     * @apiGroup Apple
+     *
+     * @apiDescription Сменить статус яблока. Используется для падения с дерева на землю.
+     *
+     * @apiParam {Integer} id ID яблока (в URL).
+     * @apiParam {Integer} status Новый статус (1 - Ground) (в Body JSON).
+     *
+     * @apiSuccess {Object} apple Обновленный объект яблока.
+     *
+     * @apiError (422) UnprocessableEntityHttpException Ошибки бизнес-логики (уже упало и т.д.).
+     * @apiError (400) BadRequestHttpException Ошибка валидации параметров.
+     *
+     * @param int $id
+     * @return Apple
+     * @throws BadRequestHttpException
+     * @throws UnprocessableEntityHttpException
+     * @throws \yii\web\NotFoundHttpException
      */
     public function actionStatus($id)
     {
@@ -99,7 +150,6 @@ class AppleController extends Controller
                 if ((int)$form->status === Apple::STATUS_ON_GROUND) {
                     $model->fallToGround();
                 }
-                // Здесь можно добавить обработку других смен статусов, если понадобятся
 
                 return $model;
             } catch (UserException $e) {

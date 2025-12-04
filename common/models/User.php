@@ -6,6 +6,7 @@ use Yii;
 use yii\base\NotSupportedException;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
+use yii\db\ActiveQuery;
 use yii\web\IdentityInterface;
 
 /**
@@ -22,6 +23,10 @@ use yii\web\IdentityInterface;
  * @property integer $created_at
  * @property integer $updated_at
  * @property string $password write-only password
+ *
+ * @property Apple[] $apples
+ *
+ * @package common\models
  */
 class User extends ActiveRecord implements IdentityInterface
 {
@@ -29,9 +34,10 @@ class User extends ActiveRecord implements IdentityInterface
     const STATUS_INACTIVE = 9;
     const STATUS_ACTIVE = 10;
 
-
     /**
      * {@inheritdoc}
+     *
+     * @return string
      */
     public static function tableName()
     {
@@ -40,6 +46,8 @@ class User extends ActiveRecord implements IdentityInterface
 
     /**
      * {@inheritdoc}
+     *
+     * @return array
      */
     public function behaviors()
     {
@@ -50,6 +58,8 @@ class User extends ActiveRecord implements IdentityInterface
 
     /**
      * {@inheritdoc}
+     *
+     * @return array
      */
     public function rules()
     {
@@ -61,6 +71,9 @@ class User extends ActiveRecord implements IdentityInterface
 
     /**
      * {@inheritdoc}
+     *
+     * @param int|string $id
+     * @return static|null
      */
     public static function findIdentity($id)
     {
@@ -69,6 +82,11 @@ class User extends ActiveRecord implements IdentityInterface
 
     /**
      * {@inheritdoc}
+     *
+     * @param mixed $token
+     * @param mixed $type
+     * @return static|null
+     * @throws NotSupportedException
      */
     public static function findIdentityByAccessToken($token, $type = null)
     {
@@ -76,7 +94,7 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Finds user by username
+     * Finds user by username.
      *
      * @param string $username
      * @return static|null
@@ -87,7 +105,7 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Finds user by password reset token
+     * Finds user by password reset token.
      *
      * @param string $token password reset token
      * @return static|null
@@ -105,12 +123,13 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Finds user by verification email token
+     * Finds user by verification email token.
      *
      * @param string $token verify email token
      * @return static|null
      */
-    public static function findByVerificationToken($token) {
+    public static function findByVerificationToken($token)
+    {
         return static::findOne([
             'verification_token' => $token,
             'status' => self::STATUS_INACTIVE
@@ -118,7 +137,7 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Finds out if password reset token is valid
+     * Finds out if password reset token is valid.
      *
      * @param string $token password reset token
      * @return bool
@@ -129,13 +148,16 @@ class User extends ActiveRecord implements IdentityInterface
             return false;
         }
 
-        $timestamp = (int) substr($token, strrpos($token, '_') + 1);
+        $timestamp = (int)substr($token, strrpos($token, '_') + 1);
         $expire = Yii::$app->params['user.passwordResetTokenExpire'];
+
         return $timestamp + $expire >= time();
     }
 
     /**
      * {@inheritdoc}
+     *
+     * @return int|string
      */
     public function getId()
     {
@@ -144,6 +166,8 @@ class User extends ActiveRecord implements IdentityInterface
 
     /**
      * {@inheritdoc}
+     *
+     * @return string
      */
     public function getAuthKey()
     {
@@ -152,6 +176,9 @@ class User extends ActiveRecord implements IdentityInterface
 
     /**
      * {@inheritdoc}
+     *
+     * @param string $authKey
+     * @return bool
      */
     public function validateAuthKey($authKey)
     {
@@ -159,7 +186,7 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Validates password
+     * Validates password.
      *
      * @param string $password password to validate
      * @return bool if password provided is valid for current user
@@ -170,9 +197,11 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Generates password hash from password and sets it to the model
+     * Generates password hash from password and sets it to the model.
      *
      * @param string $password
+     * @return void
+     * @throws \yii\base\Exception
      */
     public function setPassword($password)
     {
@@ -180,7 +209,10 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Generates "remember me" authentication key
+     * Generates "remember me" authentication key.
+     *
+     * @return void
+     * @throws \yii\base\Exception
      */
     public function generateAuthKey()
     {
@@ -188,7 +220,10 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Generates new password reset token
+     * Generates new password reset token.
+     *
+     * @return void
+     * @throws \yii\base\Exception
      */
     public function generatePasswordResetToken()
     {
@@ -196,7 +231,10 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Generates new token for email verification
+     * Generates new token for email verification.
+     *
+     * @return void
+     * @throws \yii\base\Exception
      */
     public function generateEmailVerificationToken()
     {
@@ -204,7 +242,9 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Removes password reset token
+     * Removes password reset token.
+     *
+     * @return void
      */
     public function removePasswordResetToken()
     {
@@ -213,9 +253,11 @@ class User extends ActiveRecord implements IdentityInterface
 
     /**
      * Получение списка яблок пользователя.
-     * Согласно плану: "Удалённые яблоки со значением deleted_at = null в списке не отдаются"
+     * Согласно плану: "Удалённые яблоки со значением deleted_at = null в списке не отдаются".
+     *
+     * @return ActiveQuery
      */
-    public function getApples()
+    public function getApples(): ActiveQuery
     {
         return $this->hasMany(Apple::class, ['user_id' => 'id'])
             ->where(['deleted_at' => null]) // Фильтр "мягкого" удаления
@@ -230,12 +272,13 @@ class User extends ActiveRecord implements IdentityInterface
      * Генерация яблок.
      * Использует Apple::create() для логики создания, но сохраняет через batchInsert.
      *
-     * @param int $min
-     * @param int $max
+     * @param int $min Минимальное количество яблок
+     * @param int $max Максимальное количество яблок
+     *
      * @return Apple[]
      * @throws \yii\db\Exception
      */
-    public function generateApples($min, $max)
+    public function generateApples(int $min, int $max): array
     {
         // 1. Очистка
         Apple::deleteAll(['user_id' => $this->id]);
@@ -252,7 +295,7 @@ class User extends ActiveRecord implements IdentityInterface
         // 3. Массовое сохранение (динамическое)
         Apple::saveBatch($apples);
 
-        // 4. Сброс связи
+        // 4. Сброс связи, чтобы при следующем обращении загрузились новые данные
         unset($this->apples);
 
         return $this->apples;

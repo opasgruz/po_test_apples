@@ -6,6 +6,7 @@ use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
 use yii\base\UserException;
+use yii\db\ActiveQuery;
 use yii\web\NotFoundHttpException;
 
 /**
@@ -22,43 +23,53 @@ use yii\web\NotFoundHttpException;
  * @property int|null $updated_at
  *
  * @property User $user
+ *
+ * @package common\models
  */
 class Apple extends ActiveRecord
 {
-    // Константы статусов (для внутреннего использования)
+    /** Статус: Висит на дереве */
     const STATUS_ON_TREE = 0;
+
+    /** Статус: Лежит на земле */
     const STATUS_ON_GROUND = 1;
+
+    /** Статус: Гнилое */
     const STATUS_ROTTEN = 2;
 
-    // Расшифровка статусов
+    /** @var array Расшифровка статусов */
     const STATUSES = [
         self::STATUS_ON_TREE => 'Висит на дереве',
         self::STATUS_ON_GROUND => 'Лежит на земле',
         self::STATUS_ROTTEN => 'Гнилое яблоко',
     ];
 
-    // Константы для действия "Упасть"
+    /** Константы для действия "Упасть" */
     const ACTION_FALL_METHOD = 'status';
-    const ACTION_FALL_TITLE  = 'Уронить';
-    const ACTION_FALL_COLOR  = 'warning';
+    const ACTION_FALL_TITLE = 'Уронить';
+    const ACTION_FALL_COLOR = 'warning';
 
-    // Константы для действия "Съесть"
+    /** Константы для действия "Съесть" */
     const ACTION_EAT_METHOD = 'eat';
-    const ACTION_EAT_TITLE  = 'Съесть';
-    const ACTION_EAT_COLOR  = 'success';
+    const ACTION_EAT_TITLE = 'Съесть';
+    const ACTION_EAT_COLOR = 'success';
 
     /**
      * {@inheritdoc}
+     *
+     * @return string
      */
-    public static function tableName()
+    public static function tableName(): string
     {
         return '{{%apples}}';
     }
 
     /**
-     * Поведения
+     * Поведения модели.
+     *
+     * @return array
      */
-    public function behaviors()
+    public function behaviors(): array
     {
         return [
             [
@@ -70,9 +81,11 @@ class Apple extends ActiveRecord
     }
 
     /**
-     * Правила валидации
+     * Правила валидации.
+     *
+     * @return array
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             [['user_id', 'color', 'created_at'], 'required'],
@@ -83,7 +96,12 @@ class Apple extends ActiveRecord
         ];
     }
 
-    public function getUser()
+    /**
+     * Связь с пользователем.
+     *
+     * @return ActiveQuery
+     */
+    public function getUser(): ActiveQuery
     {
         return $this->hasOne(User::class, ['id' => 'user_id']);
     }
@@ -92,39 +110,68 @@ class Apple extends ActiveRecord
     // HELPERS FOR STATUS
     // -------------------------------------------------------------------------
 
+    /**
+     * Проверка: На дереве?
+     *
+     * @return bool
+     */
     public function isStatusOnTree(): bool
     {
         return $this->status === self::STATUS_ON_TREE;
     }
 
+    /**
+     * Проверка: На земле?
+     *
+     * @return bool
+     */
     public function isStatusOnGround(): bool
     {
         return $this->status === self::STATUS_ON_GROUND;
     }
 
+    /**
+     * Проверка: Гнилое?
+     *
+     * @return bool
+     */
     public function isStatusRotten(): bool
     {
         return $this->status === self::STATUS_ROTTEN;
     }
 
+    /**
+     * Проверка: Удалено (съедено полностью)?
+     *
+     * @return bool
+     */
     public function isDeleted(): bool
     {
         return $this->deleted_at !== null;
     }
 
-    protected function getRottenTimeLimit()
+    /**
+     * Получить время гниения из настроек (в секундах).
+     *
+     * @return int
+     */
+    protected function getRottenTimeLimit(): int
     {
         // Значение по умолчанию 300 секунд (5 минут), если в env пусто
         return getenv('ROTTEN_TIME_LIMIT') ?: 300;
     }
 
     /**
-     * Упасть на землю
+     * Упасть на землю.
+     * Меняет статус и фиксирует время падения.
+     *
+     * @return bool
+     * @throws UserException
      */
-    public function fallToGround()
+    public function fallToGround(): bool
     {
         if (!$this->isStatusOnTree()) {
-            throw new UserException('AppleAlreadyFallenException'); // Замените на свой класс исключения
+            throw new UserException('AppleAlreadyFallenException');
         }
 
         $this->status = self::STATUS_ON_GROUND;
@@ -134,23 +181,27 @@ class Apple extends ActiveRecord
     }
 
     /**
-     * Откусить
+     * Откусить часть яблока.
+     *
+     * @param int $percent Процент откусываемой части
+     * @return bool
+     * @throws UserException
      */
-    public function eat($percent)
+    public function eat(int $percent): bool
     {
         // Актуализируем статус перед попыткой съесть
         $this->checkRottenState();
 
         if ($this->isStatusOnTree()) {
-            throw new UserException('AppleOnTreeException'); // Замените на свой класс исключения
+            throw new UserException('AppleOnTreeException');
         }
 
         if ($this->isStatusRotten()) {
-            throw new UserException('AppleRottenException'); // Замените на свой класс исключения
+            throw new UserException('AppleRottenException');
         }
 
         if ($this->isDeleted()) {
-            throw new UserException('AppleAlreadyEatenException'); // Замените на свой класс исключения
+            throw new UserException('AppleAlreadyEatenException');
         }
 
         if ($percent <= 0) {
@@ -168,9 +219,12 @@ class Apple extends ActiveRecord
     }
 
     /**
-     * Проверка на гнилость (Time-based logic)
+     * Проверка на гнилость (Time-based logic).
+     * Если яблоко лежит на земле дольше лимита, оно становится гнилым.
+     *
+     * @return void
      */
-    public function checkRottenState()
+    public function checkRottenState(): void
     {
         if ($this->isStatusOnGround() && !$this->isDeleted()) {
             $timeOnGround = time() - $this->fall_at;
@@ -183,11 +237,12 @@ class Apple extends ActiveRecord
     }
 
     /**
-     * API Response Helper: Действия для фронтенда
+     * API Response Helper: Список доступных действий для фронтенда.
+     *
+     * @return array
      */
     public function getAvailableActions(): array
     {
-        //TODO: параметры url и json для методов на фронте, чтобы брать готовое
         $actions = [];
 
         if ($this->isDeleted()) {
@@ -198,8 +253,8 @@ class Apple extends ActiveRecord
         if ($this->isStatusOnTree()) {
             $actions[] = [
                 'method' => self::ACTION_FALL_METHOD,
-                'title'  => self::ACTION_FALL_TITLE,
-                'color'  => self::ACTION_FALL_COLOR,
+                'title' => self::ACTION_FALL_TITLE,
+                'color' => self::ACTION_FALL_COLOR,
             ];
         }
 
@@ -211,8 +266,8 @@ class Apple extends ActiveRecord
             if (!$this->isStatusRotten()) {
                 $actions[] = [
                     'method' => self::ACTION_EAT_METHOD,
-                    'title'  => self::ACTION_EAT_TITLE,
-                    'color'  => self::ACTION_EAT_COLOR,
+                    'title' => self::ACTION_EAT_TITLE,
+                    'color' => self::ACTION_EAT_COLOR,
                 ];
             }
         }
@@ -225,7 +280,6 @@ class Apple extends ActiveRecord
      * Явно задаем null для необязательных полей, чтобы getAttributes() вернул полную структуру.
      *
      * @param int $userId
-     *
      * @return self
      */
     public static function create(int $userId): self
@@ -249,36 +303,33 @@ class Apple extends ActiveRecord
         $apple->fall_at = null;
         $apple->deleted_at = null;
 
-        // id у новой модели равен null.
-        // При batchInsert MySQL корректно обработает id=null как AutoIncrement.
-
         return $apple;
     }
 
     /**
-     * Генерация HEX цвета (теперь внутри Apple)
+     * Генерация случайного HEX цвета.
      *
      * @return string
      */
     private static function generateRandomHexColor(): string
     {
         $palettes = [
-            'green'  => ['#32CD32', '#008000', '#228B22', '#ADFF2F', '#7CFC00'],
-            'red'    => ['#FF0000', '#DC143C', '#B22222', '#CD5C5C', '#FF6347'],
+            'green' => ['#32CD32', '#008000', '#228B22', '#ADFF2F', '#7CFC00'],
+            'red' => ['#FF0000', '#DC143C', '#B22222', '#CD5C5C', '#FF6347'],
             'yellow' => ['#FFFF00', '#FFD700', '#FFFFE0', '#EEE8AA', '#F0E68C'],
             'maroon' => ['#800000', '#8B0000', '#A52A2A', '#A0522D', '#8B4513'],
         ];
 
         $randomPaletteKey = array_rand($palettes);
+
         return $palettes[$randomPaletteKey][array_rand($palettes[$randomPaletteKey])];
     }
 
     /**
-     * Универсальное массовое сохранение
+     * Универсальное массовое сохранение (Batch Insert).
      * Берет структуру колонок из первой модели в массиве.
      *
-     * @param Apple[] $models
-     *
+     * @param Apple[] $models Массив объектов Apple
      * @return void
      * @throws \yii\db\Exception
      */
@@ -292,7 +343,6 @@ class Apple extends ActiveRecord
         $firstModel = reset($models);
 
         // Получаем имена атрибутов (колонок БД)
-        // getAttributes() возвращает массив ['column' => value, ...]
         $attributes = $firstModel->getAttributes();
         $columns = array_keys($attributes);
 
@@ -301,26 +351,23 @@ class Apple extends ActiveRecord
         // 2. Формируем массив данных
         foreach ($models as $model) {
             // Получаем значения строго в том же порядке, что и $columns
-            // array_values гарантирует индексный массив
             $rows[] = array_values($model->getAttributes($columns));
         }
 
         // 3. Выполняем запрос
-        // Мы отправляем все колонки, включая 'id' (который null), БД сама создаст ID
         Yii::$app->db->createCommand()
             ->batchInsert(self::tableName(), $columns, $rows)
             ->execute();
     }
 
     /**
-     * Поиск яблока по ID и UserID (чужие есть/ронять нельзя)
+     * Поиск яблока по ID и UserID (чужие есть/ронять нельзя).
      *
      * @param int $id
-     *
      * @return Apple
      * @throws NotFoundHttpException
      */
-    public static function findModel($id): Apple
+    public static function findModel(int $id): Apple
     {
         if (($model = Apple::findOne(['id' => $id, 'user_id' => Yii::$app->user->id])) !== null) {
             return $model;

@@ -10,11 +10,25 @@ use yii\filters\VerbFilter;
 use yii\web\Controller;
 use yii\web\Response;
 
+/**
+ * Class UserController
+ *
+ * Контроллер для работы с пользователем и его яблоками.
+ *
+ * @package backend\controllers
+ */
 class UserController extends Controller
 {
-    // ОТКЛЮЧАЕМ CSRF для этого контроллера
+    /**
+     * @var bool Отключаем CSRF валидацию для API запросов
+     */
     public $enableCsrfValidation = false;
 
+    /**
+     * Настройка поведений контроллера.
+     *
+     * @return array
+     */
     public function behaviors()
     {
         return [
@@ -30,56 +44,85 @@ class UserController extends Controller
             'verbs' => [
                 'class' => VerbFilter::class,
                 'actions' => [
-                    'generate' => ['POST'], // Генерация меняет данные - POST
+                    'generate' => ['POST'],
                     'apples' => ['GET'],
                 ],
             ],
         ];
     }
 
+    /**
+     * Действие перед выполнением любого action.
+     * Форсируем формат ответа JSON.
+     *
+     * @param \yii\base\Action $action
+     * @return bool
+     * @throws \yii\web\BadRequestHttpException
+     */
     public function beforeAction($action)
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
+
         return parent::beforeAction($action);
     }
 
     /**
-     * Получить список яблок текущего пользователя
-     * GET /user/apples
+     * @api {get} /apples Получить список яблок
+     * @apiName GetUserApples
+     * @apiGroup User
+     *
+     * @apiDescription Возвращает список яблок текущего авторизованного пользователя.
+     * Также обновляет статус гнилых яблок "на лету".
+     *
+     * @apiSuccess {Object[]} items Список яблок.
+     * @apiSuccess {Integer} items.id ID яблока.
+     * @apiSuccess {String} items.color Цвет яблока (HEX).
+     * @apiSuccess {Integer} items.status Статус (0-Tree, 1-Ground, 2-Rotten).
+     * @apiSuccess {String} items.statusLabel Текстовое описание статуса.
+     * @apiSuccess {Integer} items.integrity Целостность в %.
+     * @apiSuccess {Integer} items.created_at Дата появления (Timestamp).
+     * @apiSuccess {Integer|null} items.fall_at Дата падения (Timestamp).
+     * @apiSuccess {Object[]} items.actions Доступные действия.
+     * @apiSuccess {String} items.actions.method Метод API (eat/status).
+     * @apiSuccess {String} items.actions.title Название кнопки.
+     * @apiSuccess {String} items.actions.color Цвет кнопки (Bootstrap class).
+     *
+     * @return array
      */
     public function actionApples()
     {
         /** @var User $user */
         $user = Yii::$app->user->identity;
 
-        // Получаем яблоки через связь (там уже фильтр deleted_at is null)
+        // Получаем яблоки через связь
         $apples = $user->apples;
 
-        // ВАЖНО: Пробегаемся по яблокам, чтобы обновить статус гнилых "на лету"
-        // (согласно примечанию 2 из вашего плана)
+        // Пробегаемся по яблокам, чтобы обновить статус гнилых "на лету"
         foreach ($apples as $apple) {
             $apple->checkRottenState();
         }
 
-        // Возвращаем массив яблок с дополнительными полями (actions)
-        // Для этого нужно, чтобы Apple реализовывал fields() или extraFields(),
-        // либо мы формируем ответ вручную.
-        // Стандартный JSON сериализатор возьмет публичные свойства.
-        // Чтобы добавить actions, лучше всего использовать API Resources,
-        // но здесь сделаем простой map.
-
-        return array_map(function(Apple $apple) {
+        return array_map(function (Apple $apple) {
             $data = $apple->toArray();
             $data['actions'] = $apple->getAvailableActions();
-            // Можно добавить текстовое описание статуса
             $data['statusLabel'] = Apple::STATUSES[$apple->status] ?? 'Unknown';
+
             return $data;
         }, $apples);
     }
 
     /**
-     * Сгенерировать новые яблоки
-     * POST /user/generate
+     * @api {post} /generate Сгенерировать новые яблоки
+     * @apiName GenerateApples
+     * @apiGroup User
+     *
+     * @apiDescription Удаляет все текущие яблоки пользователя и генерирует новые
+     * в случайном количестве (от MIN_APPLES_COUNT до MAX_APPLES_COUNT).
+     *
+     * @apiSuccess {Object[]} items Список новых яблок (см. GetUserApples).
+     *
+     * @return array
+     * @throws \yii\db\Exception
      */
     public function actionGenerate()
     {
@@ -90,14 +133,14 @@ class UserController extends Controller
         $min = getenv('MIN_APPLES_COUNT') ?: 2;
         $max = getenv('MAX_APPLES_COUNT') ?: 10;
 
-        // Генерируем (метод вернет новые модели)
+        // Генерируем новые яблоки
         $newApples = $user->generateApples((int)$min, (int)$max);
 
-        // Форматируем ответ так же, как в actionApples
-        return array_map(function(Apple $apple) {
+        return array_map(function (Apple $apple) {
             $data = $apple->toArray();
             $data['actions'] = $apple->getAvailableActions();
             $data['statusLabel'] = Apple::STATUSES[$apple->status] ?? 'Unknown';
+
             return $data;
         }, $newApples);
     }
