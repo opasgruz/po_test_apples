@@ -258,9 +258,9 @@ class Apple extends ActiveRecord
     /**
      * Генерация HEX цвета (теперь внутри Apple)
      *
-     * @return array
+     * @return string
      */
-    private static function generateRandomHexColor(): array
+    private static function generateRandomHexColor(): string
     {
         $palettes = [
             'green'  => ['#32CD32', '#008000', '#228B22', '#ADFF2F', '#7CFC00'],

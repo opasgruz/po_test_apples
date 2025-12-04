@@ -2,52 +2,38 @@
 
 /** @var yii\web\View $this */
 
-$this->title = 'My Yii Application';
+$this->title = 'Яблочный сад';
+
+// Подключаем наш JS скрипт
+$this->registerJsFile(
+    '@web/js/garden.js?version=1.4',
+    ['depends' => [\yii\web\JqueryAsset::class]] // Обязательно после jQuery
+);
 ?>
+
 <div class="site-index">
-
-    <div class="jumbotron text-center bg-transparent">
-        <h1 class="display-4">Congratulations!</h1>
-
-        <p class="lead">You have successfully created your Yii-powered application.</p>
-
-        <p><a class="btn btn-lg btn-success" href="https://www.yiiframework.com">Get started with Yii</a></p>
+    <!-- Панель управления -->
+    <div class="row mb-4">
+        <div class="col-md-12 text-center">
+            <h1>🍎 Яблочный сад</h1>
+            <button id="btn-generate" class="btn btn-primary btn-lg mt-2">
+                <i class="fas fa-sync"></i> Сгенерировать новые яблоки
+            </button>
+        </div>
     </div>
 
-    <div class="body-content">
-
-        <div class="row">
-            <div class="col-lg-4">
-                <h2>Heading</h2>
-
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et
-                    dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-                    ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                    fugiat nulla pariatur.</p>
-
-                <p><a class="btn btn-outline-secondary" href="https://www.yiiframework.com/doc/">Yii Documentation &raquo;</a></p>
-            </div>
-            <div class="col-lg-4">
-                <h2>Heading</h2>
-
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et
-                    dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-                    ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                    fugiat nulla pariatur.</p>
-
-                <p><a class="btn btn-outline-secondary" href="https://www.yiiframework.com/forum/">Yii Forum &raquo;</a></p>
-            </div>
-            <div class="col-lg-4">
-                <h2>Heading</h2>
-
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et
-                    dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-                    ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                    fugiat nulla pariatur.</p>
-
-                <p><a class="btn btn-outline-secondary" href="https://www.yiiframework.com/extensions/">Yii Extensions &raquo;</a></p>
-            </div>
+    <!-- Область сада -->
+    <div class="garden-container" id="garden">
+        <!-- Дерево -->
+        <div class="tree">
+            <div class="trunk"></div>
+            <div class="branch branch-left"></div>
+            <div class="branch branch-right"></div>
+            <div class="branch branch-left-top"></div>
+            <div class="branch branch-right-top"></div>
         </div>
 
+        <!-- Слой для яблок (сюда JS будет добавлять div.apple-item) -->
+        <div id="apples-layer"></div>
     </div>
 </div>

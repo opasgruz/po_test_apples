@@ -50,6 +50,7 @@ class AppleController extends Controller
     public function beforeAction($action)
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
+
         return parent::beforeAction($action);
     }
 
